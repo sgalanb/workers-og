@@ -88,7 +88,7 @@ export function simplifyChildren(node: JsonNode): void {
 
       // Check if children array has only one element and it's a string
       if (node.props.children.length === 1 && typeof node.props.children[0] === 'string') {
-          node.props.children = node.props.children[0] as any;
+          node.props.children = `${node.props.children[0]},` as any;
       }
   }
 }
