@@ -2,6 +2,7 @@ import {
   getAttributes,
   maybeRemoveTrailingComma,
   sanitizeJSON,
+  simplifyChildren,
 } from "./parseUtils";
 
 /**
@@ -16,37 +17,28 @@ import {
  * Or use a different, more forgiving parser
  */
 export async function parseHtml(html: string): Promise<React.ReactNode | null> {
-  let vdom = [];
-  let currentElement = null;
+  let vdomStr = ``;
 
   const rewriter = new HTMLRewriter()
     .on("*", {
       element(element: Element) {
         const attrs = getAttributes(element);
-        currentElement = {
-          type: element.tagName.toLowerCase(),
-          props: {
-            ...attrs,
-            children: []
-          }
-        };
-
-        element.onEndTag(() => {
-          if (currentElement) {
-            // If there's only one text child, set it directly
-            if (currentElement.props.children.length === 1 && typeof currentElement.props.children[0] === "string") {
-              currentElement.props.children = currentElement.props.children[0];
-            }
-            vdom.push(currentElement);
-            currentElement = null;
-          }
-        });
+        vdomStr += `{"type":"${element.tagName}", "props":{${attrs}"children": [`;
+        try {
+          element.onEndTag(() => {
+            vdomStr = maybeRemoveTrailingComma(vdomStr);
+            vdomStr += `]}},`;
+          });
+        } catch (e) {
+          vdomStr = maybeRemoveTrailingComma(vdomStr);
+          vdomStr += `]}},`;
+        }
       },
       text(text: Text) {
         if (text.text) {
           const sanitized = sanitizeJSON(text.text);
-          if (sanitized && currentElement) {
-            currentElement.props.children.push(sanitized);
+          if (sanitized) {
+            vdomStr += `"${sanitized}",`;
           }
         }
       },
@@ -61,10 +53,19 @@ export async function parseHtml(html: string): Promise<React.ReactNode | null> {
 
   await rewriter.text();
 
+  vdomStr = maybeRemoveTrailingComma(vdomStr);
+
+  console.log(JSON.parse(vdomStr));
+
+  let finalJson = JSON.parse(vdomStr);
+  // If an element has only one children and it is a string then
+  // replace the children array with the string itself
+  simplifyChildren(finalJson);
+
+  console.log(finalJson);
+
   try {
-    const vdomStr = JSON.stringify(vdom[0]); // Only take the root element
-    console.log(JSON.parse(vdomStr));
-    return JSON.parse(vdomStr);
+    return finalJson;
   } catch (e) {
     console.error(e);
     return null;

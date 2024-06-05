@@ -66,3 +66,29 @@ export const maybeRemoveTrailingComma = (str: string) => {
   }
   return str;
 };
+
+type JsonNode = {
+  type: string;
+  props: {
+      style?: object;
+      children?: (JsonNode | string)[];
+  };
+};
+
+export function simplifyChildren(node: JsonNode): void {
+  if (node.props && node.props.children) {
+      // Process children recursively
+      node.props.children = node.props.children.map(child => {
+          if (typeof child === 'object') {
+              simplifyChildren(child);
+              return child;
+          }
+          return child;
+      });
+
+      // Check if children array has only one element and it's a string
+      if (node.props.children.length === 1 && typeof node.props.children[0] === 'string') {
+          node.props.children = node.props.children[0] as any;
+      }
+  }
+}
