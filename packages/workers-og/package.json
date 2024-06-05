@@ -1,5 +1,5 @@
 {
-  "name": "workers-og",
+  "name": "@sgalanb/workers-og",
   "type": "module",
   "files": [
     "dist"
