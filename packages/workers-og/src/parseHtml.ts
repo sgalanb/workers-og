@@ -17,27 +17,34 @@ import {
  */
 export async function parseHtml(html: string): Promise<React.ReactNode | null> {
   let vdomStr = ``;
+  let currentElementChildren = [];
 
   const rewriter = new HTMLRewriter()
     .on("*", {
       element(element: Element) {
         const attrs = getAttributes(element);
-        vdomStr += `{"type":"${element.tagName}", "props":{${attrs}"children": [`;
+        currentElementChildren = [];
+        vdomStr += `{"type":"${element.tagName}", "props":{${attrs}"children":`;
         try {
           element.onEndTag(() => {
+            if (currentElementChildren.length === 1 && typeof currentElementChildren[0] === "string") {
+              vdomStr += `"${currentElementChildren[0]}",`;
+            } else {
+              vdomStr += `[${currentElementChildren.join(',')}],`;
+            }
             vdomStr = maybeRemoveTrailingComma(vdomStr);
-            vdomStr += `]}},`;
+            vdomStr += `}},`;
           });
         } catch (e) {
           vdomStr = maybeRemoveTrailingComma(vdomStr);
-          vdomStr += `]}},`;
+          vdomStr += `}},`;
         }
       },
       text(text: Text) {
         if (text.text) {
           const sanitized = sanitizeJSON(text.text);
           if (sanitized) {
-            vdomStr += `"${sanitized}",`;
+            currentElementChildren.push(`"${sanitized}"`);
           }
         }
       },
