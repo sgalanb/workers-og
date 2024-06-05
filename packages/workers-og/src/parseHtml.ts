@@ -37,7 +37,7 @@ export async function parseHtml(html: string): Promise<React.ReactNode | null> {
         if (text.text) {
           const sanitized = sanitizeJSON(text.text);
           if (sanitized) {
-            vdomStr += sanitized
+            vdomStr += `${sanitized},`;
           }
         }
       },
