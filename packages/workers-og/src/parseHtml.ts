@@ -52,6 +52,8 @@ export async function parseHtml(html: string): Promise<React.ReactNode | null> {
 
   await rewriter.text();
 
+  console.log(vdomStr)
+
   vdomStr = maybeRemoveTrailingComma(vdomStr);
 
   try {
