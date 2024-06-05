@@ -16,35 +16,37 @@ import {
  * Or use a different, more forgiving parser
  */
 export async function parseHtml(html: string): Promise<React.ReactNode | null> {
-  let vdomStr = ``;
-  let currentElementChildren = [];
+  let vdom = [];
+  let currentElement = null;
 
   const rewriter = new HTMLRewriter()
     .on("*", {
       element(element: Element) {
         const attrs = getAttributes(element);
-        currentElementChildren = [];
-        vdomStr += `{"type":"${element.tagName}", "props":{${attrs}"children":`;
-        try {
-          element.onEndTag(() => {
-            if (currentElementChildren.length === 1 && typeof currentElementChildren[0] === "string") {
-              vdomStr += `"${currentElementChildren[0]}",`;
-            } else {
-              vdomStr += `[${currentElementChildren.join(',')}],`;
+        currentElement = {
+          type: element.tagName.toLowerCase(),
+          props: {
+            ...attrs,
+            children: []
+          }
+        };
+
+        element.onEndTag(() => {
+          if (currentElement) {
+            // If there's only one text child, set it directly
+            if (currentElement.props.children.length === 1 && typeof currentElement.props.children[0] === "string") {
+              currentElement.props.children = currentElement.props.children[0];
             }
-            vdomStr = maybeRemoveTrailingComma(vdomStr);
-            vdomStr += `}},`;
-          });
-        } catch (e) {
-          vdomStr = maybeRemoveTrailingComma(vdomStr);
-          vdomStr += `}},`;
-        }
+            vdom.push(currentElement);
+            currentElement = null;
+          }
+        });
       },
       text(text: Text) {
         if (text.text) {
           const sanitized = sanitizeJSON(text.text);
-          if (sanitized) {
-            currentElementChildren.push(`"${sanitized}"`);
+          if (sanitized && currentElement) {
+            currentElement.props.children.push(sanitized);
           }
         }
       },
@@ -59,11 +61,9 @@ export async function parseHtml(html: string): Promise<React.ReactNode | null> {
 
   await rewriter.text();
 
-  vdomStr = maybeRemoveTrailingComma(vdomStr);
-
-  console.log(JSON.parse(vdomStr));
-
   try {
+    const vdomStr = JSON.stringify(vdom[0]); // Only take the root element
+    console.log(JSON.parse(vdomStr));
     return JSON.parse(vdomStr);
   } catch (e) {
     console.error(e);
